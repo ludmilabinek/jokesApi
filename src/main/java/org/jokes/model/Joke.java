@@ -1,25 +1,27 @@
 package org.jokes.model;
 
+import java.util.UUID;
+
 public class Joke {
 
-    private int id;
-    private String category;
-    private String type;
+    private UUID id;
+    private JokeCategory category;
+    private JokeType type;
     private String joke;
 
-    public String getCategory() {
+    public JokeCategory getCategory() {
         return category;
     }
 
-    public void setCategory(String category) {
+    public void setCategory(JokeCategory category) {
         this.category = category;
     }
 
-    public int getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -31,11 +33,11 @@ public class Joke {
         this.joke = joke;
     }
 
-    public String getType() {
+    public JokeType getType() {
         return type;
     }
 
-    public void setType(String type) {
+    public void setType(JokeType type) {
         this.type = type;
     }
 
@@ -47,5 +49,9 @@ public class Joke {
                 ", type='" + type + '\'' +
                 ", joke='" + joke + '\'' +
                 '}';
+    }
+
+    public Joke() {
+        this.id = UUID.randomUUID();
     }
 }

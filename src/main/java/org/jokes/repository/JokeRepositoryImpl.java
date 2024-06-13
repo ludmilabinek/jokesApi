@@ -1,24 +1,29 @@
 package org.jokes.repository;
 
 import org.jokes.model.Joke;
+import org.jokes.model.JokeCategory;
+import org.jokes.model.JokeType;
 import org.springframework.stereotype.Repository;
 
 
 import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
+import java.util.stream.Collectors;
 
 
 @Repository
 public class JokeRepositoryImpl implements JokeRepository{
 
-    private HashMap<Integer, Joke> jokeList = new HashMap<>();
+    private Map<UUID, Joke> jokeList = new HashMap<>();
 
     @Override
-    public HashMap<Integer, Joke> findAll() {
+    public Map<UUID, Joke> findAll() {
         return jokeList;
     }
 
     @Override
-    public Joke findById(int id) {
+    public Joke findById(UUID id) {
         if(jokeList.containsKey(id)) {
             return  jokeList.get(id);
         }
@@ -28,17 +33,59 @@ public class JokeRepositoryImpl implements JokeRepository{
     }
 
     @Override
-    public Joke save(Joke joke) {
-        if(jokeList.containsKey(joke.getId())) {
-            return jokeList.get(joke.getId());
+    public Map<UUID, Joke> findByContent(String content) {
+        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
+                .filter(map -> map.getValue().getJoke().contains(content))
+                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+
+        if(!resultList.isEmpty()) {
+            return  resultList;
         }
         else {
-            return jokeList.put(joke.getId(), joke);
+            return null;
         }
     }
 
     @Override
-    public boolean delete(int id) {
+    public Map<UUID, Joke> findByType(JokeType content) {
+        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
+                .filter(map -> map.getValue().getType().equals(content))
+                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+
+        if(!resultList.isEmpty()) {
+            return  resultList;
+        }
+        else {
+            return null;
+        }
+    }
+
+    @Override
+    public Map<UUID, Joke> findByCategory(JokeCategory content) {
+        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
+                .filter(map -> map.getValue().getCategory().equals(content))
+                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+
+        if(!resultList.isEmpty()) {
+            return  resultList;
+        }
+        else {
+            return null;
+        }
+    }
+
+    @Override
+    public UUID save(Joke joke) {
+        Joke newJoke = new Joke();
+        newJoke.setJoke(joke.getJoke());
+        newJoke.setCategory(joke.getCategory());
+        newJoke.setType(joke.getType());
+        jokeList.put(newJoke.getId(), newJoke);
+        return newJoke.getId();
+    }
+
+    @Override
+    public boolean delete(UUID id) {
         if(jokeList.containsKey(id)) {
             if(jokeList.remove(id)!=null) {
                 return true;
@@ -49,7 +96,7 @@ public class JokeRepositoryImpl implements JokeRepository{
     }
 
     @Override
-    public boolean update(int id, Joke newjoke) {
+    public boolean update(UUID id, Joke newjoke) {
         if(jokeList.containsKey(id)) {
             jokeList.replace(id, newjoke);
             if(jokeList.get(id).equals(newjoke)) {
