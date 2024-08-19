@@ -1,12 +1,10 @@
 package org.jokes.services;
 
-import org.jokes.model.Joke;
-import org.jokes.model.JokeCategory;
-import org.jokes.model.JokeType;
+import org.jokes.model.*;
 import org.jokes.repository.JokeRepository;
 import org.springframework.stereotype.Service;
 
-import java.util.Map;
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -20,38 +18,28 @@ public class JokeServiceImpl implements JokeService{
     }
 
     @Override
-    public Map<UUID, Joke> getJokes() {
-        Map<UUID, Joke> jokeList = jokeRepository.findAll();
-        return jokeList;
+    public List<Joke> getJokes() {
+        return jokeRepository.findAll();
+    }
+
+    @Override
+    public List<Joke> getJokesPaging(int limit, int offset) {
+        return jokeRepository.findPaging(limit, offset);
     }
 
     @Override
     public Optional<Joke> getJokeById(UUID id) {
-        Optional<Joke> joke = Optional.ofNullable(jokeRepository.findById(id));
-        return joke;
+        return Optional.ofNullable(jokeRepository.findById(id));
     }
 
     @Override
-    public Map<UUID, Joke> getJokeByContent(String content) {
-        Map<UUID, Joke> jokeList = jokeRepository.findByContent(content);
-        return jokeList;
+    public List<Joke> getSearchJoke(String content, String type, String category, String[] exluded, String[] included) {
+        return jokeRepository.searchJoke(content,type, category, exluded, included);
     }
 
     @Override
-    public Map<UUID, Joke> getJokeByType(JokeType content) {
-        Map<UUID, Joke> jokeList = jokeRepository.findByType(content);
-        return jokeList;
-    }
-
-    @Override
-    public Map<UUID, Joke> getJokeByCategory(JokeCategory content) {
-        Map<UUID, Joke> jokeList = jokeRepository.findByCategory(content);
-        return jokeList;
-    }
-
-    @Override
-    public UUID addJoke(Joke newjoke) {
-        return jokeRepository.save(newjoke);
+    public UUID addJoke(JokeDTO newjoke) {
+        return jokeRepository.save(JokeMapper.fromDTO(newjoke));
     }
 
     @Override
@@ -60,7 +48,7 @@ public class JokeServiceImpl implements JokeService{
     }
 
     @Override
-    public boolean updateJoke(UUID id, Joke newjoke) {
-        return jokeRepository.update(id, newjoke);
+    public boolean updateJoke(UUID id, JokeDTO newjoke) {
+        return jokeRepository.update(id, JokeMapper.fromDTO(newjoke));
     }
 }

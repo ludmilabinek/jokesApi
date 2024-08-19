@@ -2,74 +2,82 @@ package org.jokes.repository;
 
 import org.jokes.model.Joke;
 import org.jokes.model.JokeCategory;
+import org.jokes.model.JokeFlags;
 import org.jokes.model.JokeType;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Repository;
 
-
-import java.util.HashMap;
-import java.util.Map;
-import java.util.UUID;
-import java.util.stream.Collectors;
-
+import java.util.*;
+import java.util.function.Predicate;
 
 @Repository
-public class JokeRepositoryImpl implements JokeRepository{
+public class JokeRepositoryImpl implements JokeRepository {
 
-    private Map<UUID, Joke> jokeList = new HashMap<>();
+    private static final Logger LOGGER = LoggerFactory.getLogger(JokeRepositoryImpl.class);
+    private final Map<UUID, Joke> jokeList = new HashMap<>();
 
     @Override
-    public Map<UUID, Joke> findAll() {
-        return jokeList;
+    public List<Joke> findAll() {
+        return jokeList.entrySet().stream()
+                .sorted(Comparator.comparing(j -> j.getValue().getCreateData()))
+                .map(Map.Entry::getValue)
+                .toList();
+    }
+
+    @Override
+    public List<Joke> findPaging(int limit, int offset) {
+        return jokeList.entrySet().stream()
+                .sorted(Comparator.comparing(j -> j.getValue().getCreateData()))
+                .skip(offset)
+                .limit(limit)
+                .map(Map.Entry::getValue)
+                .toList();
     }
 
     @Override
     public Joke findById(UUID id) {
-        if(jokeList.containsKey(id)) {
-            return  jokeList.get(id);
-        }
-        else {
-            return null;
-        }
+        return jokeList.getOrDefault(id, null);
     }
 
     @Override
-    public Map<UUID, Joke> findByContent(String content) {
-        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                .filter(map -> map.getValue().getJoke().contains(content))
-                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+    public List<Joke> searchJoke(String content, String type, String category, String[] exluded, String[] included) {
 
-        if(!resultList.isEmpty()) {
-            return  resultList;
+        List<Predicate<Joke>> allPredicates = new ArrayList<>();
+        if (content != null && !content.isEmpty()) {
+            allPredicates.add(p -> p.getJoke().contains(content) || (p.getSecondPart() != null && p.getSecondPart().contains(content)));
         }
-        else {
-            return null;
+        if (type != null && !type.isEmpty()) {
+            allPredicates.add(p -> p.getType().equals(JokeType.valueOf(type.toUpperCase())));
         }
-    }
+        if (category != null && !category.isEmpty()) {
+            allPredicates.add(p -> p.getCategory().equals(JokeCategory.valueOf(category.toUpperCase())));
+        }
+        if (exluded != null) {
+            for (String ex : exluded) {
+                allPredicates.add(p -> !p.getJokeFlagsMap().entrySet().stream()
+                        .filter(p1 -> p1.getKey().equals(JokeFlags.valueOf(ex.toUpperCase())) && p1.getValue().equals(false))
+                        .toList().isEmpty()
+                );
+            }
+        }
+        if (included != null) {
+            for (String in : included) {
+                allPredicates.add(p -> !p.getJokeFlagsMap().entrySet().stream()
+                        .filter(p1 -> p1.getKey().equals(JokeFlags.valueOf(in.toUpperCase())) && p1.getValue().equals(true))
+                        .toList().isEmpty()
+                );
+            }
+        }
 
-    @Override
-    public Map<UUID, Joke> findByType(JokeType content) {
-        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                .filter(map -> map.getValue().getType().equals(content))
-                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
+        List<Joke> resultList = jokeList.values().stream()
+                .filter(allPredicates.stream().reduce(j -> true, Predicate::and))
+                .sorted(Comparator.comparing(Joke::getCreateData))
+                .toList();
 
-        if(!resultList.isEmpty()) {
-            return  resultList;
-        }
-        else {
-            return null;
-        }
-    }
-
-    @Override
-    public Map<UUID, Joke> findByCategory(JokeCategory content) {
-        Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                .filter(map -> map.getValue().getCategory().equals(content))
-                .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
-
-        if(!resultList.isEmpty()) {
-            return  resultList;
-        }
-        else {
+        if (!resultList.isEmpty()) {
+            return resultList;
+        } else {
             return null;
         }
     }
@@ -80,16 +88,16 @@ public class JokeRepositoryImpl implements JokeRepository{
         newJoke.setJoke(joke.getJoke());
         newJoke.setCategory(joke.getCategory());
         newJoke.setType(joke.getType());
+        newJoke.setSecondPart(joke.getSecondPart());
+        newJoke.setJokeFlagsMap(joke.getJokeFlagsMap());
         jokeList.put(newJoke.getId(), newJoke);
         return newJoke.getId();
     }
 
     @Override
     public boolean delete(UUID id) {
-        if(jokeList.containsKey(id)) {
-            if(jokeList.remove(id)!=null) {
-                return true;
-            }
+        if (jokeList.containsKey(id)) {
+            return jokeList.remove(id) != null;
         }
 
         return false;
@@ -97,11 +105,9 @@ public class JokeRepositoryImpl implements JokeRepository{
 
     @Override
     public boolean update(UUID id, Joke newjoke) {
-        if(jokeList.containsKey(id)) {
+        if (jokeList.containsKey(id)) {
             jokeList.replace(id, newjoke);
-            if(jokeList.get(id).equals(newjoke)) {
-                return true;
-            }
+            return jokeList.get(id).equals(newjoke);
         }
 
         return false;

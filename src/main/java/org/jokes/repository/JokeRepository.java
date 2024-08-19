@@ -1,19 +1,16 @@
 package org.jokes.repository;
 
 import org.jokes.model.Joke;
-import org.jokes.model.JokeCategory;
-import org.jokes.model.JokeType;
 
-import java.util.Map;
+import java.util.List;
 import java.util.UUID;
 
 
 public interface JokeRepository {
-    public Map<UUID, Joke> findAll();
+    public List<Joke> findAll();
+    public List<Joke> findPaging(int limit, int offset);
     public Joke findById(UUID id);
-    public Map<UUID, Joke> findByContent(String content);
-    public Map<UUID, Joke> findByType(JokeType content);
-    public Map<UUID, Joke> findByCategory(JokeCategory content);
+    public List<Joke> searchJoke(String content, String type, String category, String[] exluded, String[] included);
     public UUID save(Joke joke);
     public boolean delete(UUID id);
     public boolean update(UUID id, Joke joke);

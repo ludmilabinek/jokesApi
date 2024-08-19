@@ -6,5 +6,5 @@ public enum JokeCategory {
     DARK,
     PUN,
     SPOOKY,
-    CHRISTMAS;
+    CHRISTMAS
 }

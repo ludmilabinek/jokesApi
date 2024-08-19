@@ -1,95 +1,96 @@
 package org.jokes.services;
 
-import org.jokes.model.Joke;
-import org.jokes.model.JokeCategory;
-import org.jokes.model.JokeType;
+import org.jokes.model.*;
 import org.jokes.repository.JokeRepositoryImpl;
+import org.jokes.utils.JokeUtils;
+import org.json.JSONArray;
+import org.json.JSONObject;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
-import java.util.stream.Collectors;
+import java.util.*;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
 public class JokeServiceImplTest {
 
-    @Mock
-    private JokeRepositoryImpl jokeRepository;
+//    @InjectMocks
+    private final JokeRepositoryImpl jokeRepository = new JokeRepositoryImpl();
 
-    @InjectMocks
-    private JokeServiceImpl jokeService;
+//    @InjectMocks
+    private final JokeServiceImpl jokeService = new JokeServiceImpl(jokeRepository);
 
-    private static Map<UUID, Joke> jokeList;
-
-    @BeforeAll
-    public static void setUp(){
-        jokeList = new HashMap<>();
-    }
-
-    @AfterEach
-    public void tearDown(){
-        jokeList.clear();
-    }
 
     private void setData() {
         Joke newjoke = new Joke();
         newjoke.setCategory(JokeCategory.MISC);
         newjoke.setType(JokeType.SINGLE);
         newjoke.setJoke("I visited my friend at his new house. He told me to make myself at home. So I threw him out. I hate having visitors.");
-        jokeList.put(newjoke.getId(), newjoke);
+        newjoke.setJokeFlagsMap(JokeUtils.createJokeFlagsMap(true,false,false,false, false, false));
+        jokeRepository.save(newjoke);
 
         Joke newjoke2 = new Joke();
         newjoke2.setCategory(JokeCategory.PROGRAMMING);
         newjoke2.setType(JokeType.SINGLE);
         newjoke2.setJoke("The six stages of debugging:\\n1. That can't happen.\\n2. That doesn't happen on my machine.\\n3. That shouldn't happen.\\n4. Why does that happen?\\n5. Oh, I see.\\n6. How did that ever work?");
-        jokeList.put(newjoke2.getId(), newjoke2);
+        newjoke2.setJokeFlagsMap(JokeUtils.createJokeFlagsMap(true,false,true,false, false, false));
+        jokeRepository.save(newjoke2);
+    }
+
+    private void setBigData() {
+        String jsonData = JokeUtils.returnSampleData();
+
+        JSONArray jsonArray = new JSONArray(jsonData);
+        JSONObject jObject, jFlags;
+
+        for (int i = 0; i < jsonArray.length(); i++) {
+            jObject = jsonArray.getJSONObject(i);
+            String secondPart = "";
+
+            if (jObject.opt("secondPart") != null) {
+                secondPart = jObject.get("secondPart").toString();
+            }
+
+            jFlags = new JSONObject(jObject.get("flags").toString());
+
+            Joke newjoke = new Joke();
+            newjoke.setJoke(jObject.get("joke").toString());
+            newjoke.setSecondPart(secondPart);
+            newjoke.setType(JokeType.valueOf(jObject.get("type").toString()));
+            newjoke.setCategory(JokeCategory.valueOf(jObject.get("category").toString()));
+            newjoke.setJokeFlagsMap(JokeUtils.createJokeFlagsMap((Boolean) jFlags.get("nsfw"), (Boolean) jFlags.get("religious"), (Boolean) jFlags.get("political"), (Boolean) jFlags.get("sexist"), (Boolean) jFlags.get("religious"), (Boolean) jFlags.get("explicit")));
+            jokeRepository.save(newjoke);
+        }
     }
 
     @DisplayName("Add joke test")
     @Test
     public void testAddJoke() {
-
         //Given
-        when(jokeService.addJoke(any(Joke.class))).then(invocation -> {
-            Joke tempJoke = invocation.getArgument(0, Joke.class);
-            jokeList.put(tempJoke.getId(), tempJoke);
-            return tempJoke.getId();
-        });
-        when(jokeService.getJokes()).thenReturn(jokeList);
-
-        Joke newjoke = new Joke();
-        newjoke.setCategory(JokeCategory.PROGRAMMING);
-        newjoke.setType(JokeType.SINGLE);
-        newjoke.setJoke("This is a test");
+        JokeDTO newjokeDTO = new JokeDTO();
+        newjokeDTO.setCategory(JokeCategory.PROGRAMMING);
+        newjokeDTO.setFlags(JokeUtils.createJokeFlagsMap(true,false,false,false, false, false));
+        newjokeDTO.setJoke("This is a test");
 
         //when
-        jokeService.addJoke(newjoke);
-        Map<UUID, Joke> jokeListInTest = jokeService.getJokes();
+        jokeService.addJoke(newjokeDTO);
+        List<Joke> jokeListInTest = jokeService.getJokes();
 
         //assert
         assertEquals(1, jokeListInTest.size());
-        assertEquals(jokeListInTest.get(newjoke.getId()), newjoke);
+        assertEquals(jokeListInTest.getFirst().getCategory(), newjokeDTO.getCategory());
     }
 
     @DisplayName("get jokes test")
     @Test
     public void testGetJokes() {
-        this.setData();
         //Given
-        when(jokeService.getJokes()).thenReturn(jokeList);
+        this.setData();
 
         //when
-        Map<UUID, Joke> jokeListInTest = jokeService.getJokes();
+        List<Joke> jokeListInTest = jokeService.getJokes();
 
         //assert
         assertEquals(2, jokeListInTest.size());
@@ -98,19 +99,13 @@ public class JokeServiceImplTest {
     @DisplayName("get joke by id test")
     @Test
     public void testGetJokeById() {
+        // given
         this.setData();
-        //Given
-        when(jokeService.getJokeById(any(UUID.class))).then(invocation -> {
-            UUID id = invocation.getArgument(0, UUID.class);
-            if(jokeList.containsKey(id)) {
-                return jokeList.get(id);
-            }
-            return null;
-        });
+        List<Joke> jokeList = jokeService.getJokes();
 
         //when
-        Optional<Joke> resultJoke = jokeService.getJokeById(jokeList.entrySet().iterator().next().getKey());
-        Optional<Joke> resultJoke2 = jokeService.getJokeById(jokeList.entrySet().iterator().next().getKey());
+        Optional<Joke> resultJoke = jokeService.getJokeById(jokeList.getFirst().getId());
+        Optional<Joke> resultJoke2 = jokeService.getJokeById(jokeList.getLast().getId());
         Optional<Joke> resultJoke3= jokeService.getJokeById(UUID.randomUUID());
 
         //assert
@@ -119,135 +114,79 @@ public class JokeServiceImplTest {
         assertTrue(resultJoke3.isEmpty());
     }
 
-    @DisplayName("get joke by type test")
+    @DisplayName("search joke test")
     @Test
-    public void testGetJokeByType() {
-        this.setData();
+    public void testSearchJoke() {
         //Given
-        when(jokeService.getJokeByType(any(JokeType.class))).then(invocation -> {
-            JokeType content = invocation.getArgument(0, JokeType.class);
-            Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                    .filter(map -> map.getValue().getType().equals(content))
-                    .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
-
-            return resultList;
-        });
+        this.setBigData();
 
         //when
-        Map<UUID, Joke> resultJoke = jokeService.getJokeByType(JokeType.SINGLE);
-        Map<UUID, Joke> resultJoke2 = jokeService.getJokeByType(JokeType.TWOPART);
+        List<Joke> resultJoke = jokeService.getSearchJoke(null, null, null, null, null);
+        List<Joke> resultJoke1 = jokeService.getSearchJoke("and", JokeType.TWOPART.toString(), null, null, null);
+        System.out.println(resultJoke.size());
+        List<Joke> resultJoke2 = jokeService.getSearchJoke(null, JokeType.TWOPART.toString(), JokeCategory.MISC.name(), null, null);
+        String[] arrayExcluded = {JokeFlags.EXPLICIT.toString(), JokeFlags.SEXIST.toString()};
+        String[] arrayIncluded = {JokeFlags.EXPLICIT.toString()};
+        List<Joke> resultJoke3 = jokeService.getSearchJoke(null, JokeType.TWOPART.toString(), null, arrayExcluded, null);
+        List<Joke> resultJoke4 = jokeService.getSearchJoke(null, null, null, null, arrayIncluded);
+        List<Joke> resultJoke5 = jokeService.getSearchJoke(null, JokeType.SINGLE.toString(), null, null, arrayIncluded);
+
 
         //assert
         assertFalse(resultJoke.isEmpty());
-        assertTrue(resultJoke2.isEmpty());
-        assertEquals(2, resultJoke.size());
-    }
-
-    @DisplayName("get joke by category test")
-    @Test
-    public void testGetJokeByCategory() {
-        this.setData();
-        //Given
-        when(jokeService.getJokeByCategory(any(JokeCategory.class))).then(invocation -> {
-            JokeCategory content = invocation.getArgument(0, JokeCategory.class);
-            Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                    .filter(map -> map.getValue().getCategory().equals(content))
-                    .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
-
-            return resultList;
-        });
-
-        //when
-        Map<UUID, Joke> resultJoke = jokeService.getJokeByCategory(JokeCategory.PROGRAMMING);
-        Map<UUID, Joke> resultJoke2 = jokeService.getJokeByCategory(JokeCategory.CHRISTMAS);
-
-        //assert
-        assertFalse(resultJoke.isEmpty());
-        assertTrue(resultJoke2.isEmpty());
-        assertEquals(1, resultJoke.size());
-    }
-
-    @DisplayName("search joke by content test")
-    @Test
-    public void testGetJokeByContent() {
-        this.setData();
-        //Given
-        when(jokeService.getJokeByContent(any(String.class))).then(invocation -> {
-            String content = invocation.getArgument(0, String.class);
-            Map<UUID, Joke> resultList = jokeList.entrySet().stream()
-                    .filter(map -> map.getValue().getJoke().contains(content))
-                    .collect(Collectors.toMap(map -> map.getKey(), map -> map.getValue()));
-
-            return resultList;
-        });
-
-        //when
-        Map<UUID, Joke> resultJoke = jokeService.getJokeByContent("my");
-        Map<UUID, Joke> resultJoke2 = jokeService.getJokeByContent("visit");
-        Map<UUID, Joke> resultJoke3 = jokeService.getJokeByContent("Lorem ipsum");
-
-        //assert
-        assertFalse(resultJoke.isEmpty());
+        assertEquals(10, resultJoke.size());
+        assertFalse(resultJoke1.isEmpty());
+        assertEquals(2, resultJoke1.size());
         assertFalse(resultJoke2.isEmpty());
-        assertTrue(resultJoke3.isEmpty());
-        assertEquals(2, resultJoke.size());
-        assertEquals(1, resultJoke2.size());
+        assertEquals(2, resultJoke2.size());
+        assertFalse(resultJoke3.isEmpty());
+        assertEquals(7, resultJoke3.size());
+        assertFalse(resultJoke4.isEmpty());
+        assertEquals(1, resultJoke4.size());
+        assertNull(resultJoke5);
     }
+
 
     @DisplayName("delete joke test")
     @Test
     public void testDeleteJoke() {
-        this.setData();
         //Given
-        when(jokeService.deleteJoke(any(UUID.class))).then(invocation -> {
-            UUID id = invocation.getArgument(0, UUID.class);
-            if(jokeList.containsKey(id)) {
-                if(jokeList.remove(id)!=null) {
-                    return true;
-                }
-            }
-            return false;
-        });
+        this.setData();
+        List<Joke> jokeList = jokeService.getJokes();
 
         //when
-        boolean status = jokeService.deleteJoke(jokeList.entrySet().iterator().next().getKey());
+        boolean status = jokeService.deleteJoke(jokeList.getFirst().getId());
         boolean status2 = jokeService.deleteJoke(UUID.randomUUID());
 
         //assert
         assertTrue(status);
         assertFalse(status2);
+        assertEquals(jokeService.getJokes().size(), 1);
     }
 
     @DisplayName("update joke test")
     @Test
    public void testUpdateJoke() {
-        this.setData();
         //Given
-        when(jokeService.updateJoke(any(UUID.class),any(Joke.class))).then(invocation -> {
-            UUID id = invocation.getArgument(0, UUID.class);
-            Joke newJoke = invocation.getArgument(1, Joke.class);
-            if(jokeList.containsKey(id)) {
-                jokeList.replace(id, newJoke);
-                if(jokeList.get(id).equals(newJoke)) {
-                    return true;
-                }
-            }
-            return false;
-        });
+        this.setData();
 
-        Joke newjoke = new Joke();
+        JokeDTO newjoke = new JokeDTO();
         newjoke.setCategory(JokeCategory.SPOOKY);
-        newjoke.setType(JokeType.TWOPART);
         newjoke.setJoke("This is a test");
+        newjoke.setSecondPart("This is a test");
+
+        List<Joke> jokeList = jokeService.getJokes();
 
         //when
-        boolean status = jokeService.updateJoke(jokeList.entrySet().iterator().next().getKey(), newjoke);
+        UUID jokeId = jokeList.getFirst().getId();
+        boolean status = jokeService.updateJoke(jokeId, newjoke);
         boolean status2 = jokeService.updateJoke(UUID.randomUUID(), newjoke);
 
         //assert
         assertTrue(status);
         assertFalse(status2);
-        assertTrue(jokeList.containsValue(newjoke));
+        Optional<Joke> updatedJoke = jokeService.getJokeById(jokeId);
 
+        assertEquals(updatedJoke.get().getCategory(), newjoke.getCategory());
     }
 }
