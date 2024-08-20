@@ -189,4 +189,34 @@ public class JokeServiceImplTest {
 
         assertEquals(updatedJoke.get().getCategory(), newjoke.getCategory());
     }
+
+    @DisplayName("pagging test")
+    @Test
+    public void testPagging() {
+        //Given
+        this.setBigData();
+        List<Joke> allJokeList = jokeService.getJokes();
+
+        //when
+        List<Joke> jokeList = jokeService.getJokesPaging(10, 0);
+        List<Joke> jokeList1 = jokeService.getJokesPaging(10, 2);
+        List<Joke> jokeList2 = jokeService.getJokesPaging(2, 9);
+        List<Joke> jokeList3 = jokeService.getJokesPaging(1, 0);
+        List<Joke> jokeList4 = jokeService.getJokesPaging(1, 1);
+        List<Joke> jokeList5 = jokeService.getJokesPaging(1, 2);
+
+        //assert
+        assertFalse(jokeList.isEmpty());
+        assertEquals(10, jokeList.size());
+
+        assertFalse(jokeList1.isEmpty());
+        assertEquals(8, jokeList1.size());
+
+        assertFalse(jokeList2.isEmpty());
+        assertEquals(1, jokeList2.size());
+
+        assertEquals(jokeList3.getFirst(), allJokeList.getFirst());
+        assertEquals(jokeList4.getFirst(), allJokeList.get(1));
+        assertEquals(jokeList5.getFirst(), allJokeList.get(2));
+    }
 }
